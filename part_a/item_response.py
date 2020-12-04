@@ -176,10 +176,11 @@ def main():
 	plt.show()
 	
 	# Probability plots
-	js = [0,1,2,3,4]
+	js = [866,890,1165,1202,1410]
 	xs = np.linspace(-5,5)
 	for j in js:
 		plt.plot(xs,sigmoid(xs-beta[j]))
+		plt.vlines(beta[j],0,1)
 		plt.title("Probability of answering question "+str(j)+" correctly")
 		plt.show()
 	#####################################################################
