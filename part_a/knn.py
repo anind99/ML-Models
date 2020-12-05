@@ -1,6 +1,6 @@
 from sklearn.impute import KNNImputer
 from utils import *
-
+import matplotlib.pyplot as plt
 
 def knn_impute_by_user(matrix, valid_data, k):
     """ Fill in the missing values using k-Nearest Neighbors based on
@@ -33,14 +33,10 @@ def knn_impute_by_item(matrix, valid_data, k):
     :param k: int
     :return: float
     """
-    #####################################################################
-    # TODO:                                                             #
-    # Implement the function as described in the docstring.             #
-    #####################################################################
-    acc = None
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
+    nbrs = KNNImputer(n_neighbors=1)
+    mat = nbrs.fit_transform(sparse_matrix.T).T
+    acc = sparse_matrix_evaluate(val_data, mat)
+    print("Validation Accuracy: {}".format(acc))
     return acc
 
 
@@ -53,17 +49,20 @@ def main():
     print(sparse_matrix)
     print("Shape of sparse matrix:")
     print(sparse_matrix.shape)
+    x = [i for i in range(1, 10)]
+    validacc_user = [knn_impute_by_user(sparse_matrix, val_data, i) for i in range(1, 10)]
+    validacc_item = [knn_impute_by_item(sparse_matrix, val_data, i) for i in range(1, 10)]
+    plt.plot(x, validacc_user, label="By user similarity")
+    plt.plot(x, validacc_item, label="By item similarity")
+    plt.ylabel("accuracy")
+    plt.xlabel("k - nearest neighbour")
+    plt.legend()
 
-    #####################################################################
-    # TODO:                                                             #
-    # Compute the validation accuracy for each k. Then pick k* with     #
-    # the best performance and report the test accuracy with the        #
-    # chosen k*.                                                        #
-    #####################################################################
-    pass
-    #####################################################################
-    #                       END OF YOUR CODE                            #
-    #####################################################################
+    k1 = np.argmax(validacc_user) + 1
+    k2 = np.argmax(validacc_item) + 1
+
+    print("Test accuracy - by user: {}".format(knn_impute_by_user(sparse_matrix, test_data, k1)))
+    print("Test accuracy - by item: {}".format(knn_impute_by_item(sparse_matrix, test_data, k2)))
 
 
 if __name__ == "__main__":
