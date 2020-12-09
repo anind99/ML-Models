@@ -2,6 +2,7 @@ from sklearn.impute import KNNImputer
 from utils import *
 import matplotlib.pyplot as plt
 
+
 def knn_impute_by_user(matrix, valid_data, k):
     """ Fill in the missing values using k-Nearest Neighbors based on
     student similarity. Return the accuracy on valid_data.
@@ -19,7 +20,7 @@ def knn_impute_by_user(matrix, valid_data, k):
     # We use NaN-Euclidean distance measure.
     mat = nbrs.fit_transform(matrix)
     acc = sparse_matrix_evaluate(valid_data, mat)
-    print("Validation Accuracy: {}".format(acc))
+    print("user {}".format(k))
     return acc
 
 
@@ -33,36 +34,39 @@ def knn_impute_by_item(matrix, valid_data, k):
     :param k: int
     :return: float
     """
-    nbrs = KNNImputer(n_neighbors=1)
+    nbrs = KNNImputer(n_neighbors=k)
+    # We use NaN-Euclidean distance measure.
     mat = nbrs.fit_transform(sparse_matrix.T).T
     acc = sparse_matrix_evaluate(val_data, mat)
-    print("Validation Accuracy: {}".format(acc))
+    # print("Validation Accuracy: {}".format(acc))
+    print("item {}".format(k))
     return acc
 
 
 def main():
-    sparse_matrix = load_train_sparse("../data").toarray()
-    val_data = load_valid_csv("../data")
-    test_data = load_public_test_csv("../data")
+    sparse_matrix = load_train_sparse("").toarray()
+    val_data = load_valid_csv("")
+    test_data = load_public_test_csv("")
 
     print("Sparse matrix:")
     print(sparse_matrix)
     print("Shape of sparse matrix:")
     print(sparse_matrix.shape)
-    x = [i for i in range(1, 10)]
-    validacc_user = [knn_impute_by_user(sparse_matrix, val_data, i) for i in range(1, 10)]
-    validacc_item = [knn_impute_by_item(sparse_matrix, val_data, i) for i in range(1, 10)]
+    x = [i for i in range(5, 13)]
+    validacc_user = [knn_impute_by_user(sparse_matrix, val_data, i) for i in range(5, 13)]
+    validacc_item = [knn_impute_by_item(sparse_matrix, val_data, i) for i in range(5, 13)]
+
     plt.plot(x, validacc_user, label="By user similarity")
     plt.plot(x, validacc_item, label="By item similarity")
     plt.ylabel("accuracy")
     plt.xlabel("k - nearest neighbour")
     plt.legend()
 
-    k1 = np.argmax(validacc_user) + 1
-    k2 = np.argmax(validacc_item) + 1
+    k1 = np.argmax(validacc_user) + 5
+    k2 = np.argmax(validacc_item) + 5
 
-    print("Test accuracy - by user: {}".format(knn_impute_by_user(sparse_matrix, test_data, k1)))
-    print("Test accuracy - by item: {}".format(knn_impute_by_item(sparse_matrix, test_data, k2)))
+    print("Test accuracy - by user: {} with k = {}".format(knn_impute_by_user(sparse_matrix, test_data, k1), k1))
+    print("Test accuracy - by item: {} with k = {}".format(knn_impute_by_item(sparse_matrix, test_data, k2), k2))
 
 
 if __name__ == "__main__":
