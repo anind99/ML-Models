@@ -1,4 +1,5 @@
-# TODO: complete this file.
+from sklearn.impute import KNNImputer
+
 def sample_knn_prediction(matrix, test_data):
     """Returns knn prediction using sample of test_data"""
     nbsr = KNNImputer(n_neighbors=7)
