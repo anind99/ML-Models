@@ -36,7 +36,7 @@ def knn_impute_by_item(matrix, valid_data, k):
     """
     nbrs = KNNImputer(n_neighbors=k)
     # We use NaN-Euclidean distance measure.
-    mat = nbrs.fit_transform(sparse_matrix.T).T
+    mat = nbrs.fit_transform(matrix.T).T
     acc = sparse_matrix_evaluate(val_data, mat)
     # print("Validation Accuracy: {}".format(acc))
     print("item {}".format(k))
@@ -52,9 +52,9 @@ def main():
     print(sparse_matrix)
     print("Shape of sparse matrix:")
     print(sparse_matrix.shape)
-    x = [i for i in range(5, 13)]
-    validacc_user = [knn_impute_by_user(sparse_matrix, val_data, i) for i in range(5, 13)]
-    validacc_item = [knn_impute_by_item(sparse_matrix, val_data, i) for i in range(5, 13)]
+    x = [1, 6, 11, 16, 21, 26]
+    validacc_user = [knn_impute_by_user(sparse_matrix, val_data, i) for i in x]
+    validacc_item = [knn_impute_by_item(sparse_matrix, val_data, i) for i in x]
 
     plt.plot(x, validacc_user, label="By user similarity")
     plt.plot(x, validacc_item, label="By item similarity")
@@ -62,8 +62,8 @@ def main():
     plt.xlabel("k - nearest neighbour")
     plt.legend()
 
-    k1 = np.argmax(validacc_user) + 5
-    k2 = np.argmax(validacc_item) + 5
+    k1 = x[np.argmax(validacc_user)]
+    k2 = x[np.argmax(validacc_item)]
 
     print("Test accuracy - by user: {} with k = {}".format(knn_impute_by_user(sparse_matrix, test_data, k1), k1))
     print("Test accuracy - by item: {} with k = {}".format(knn_impute_by_item(sparse_matrix, test_data, k2), k2))
