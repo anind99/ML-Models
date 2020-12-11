@@ -2,13 +2,13 @@ from sklearn.impute import KNNImputer
 
 def sample_knn_prediction(matrix, test_data):
     """Returns knn prediction using sample of test_data"""
-    nbsr = KNNImputer(n_neighbors=7)
+    nbsr = KNNImputer(n_neighbors=11)
     idx = np.random.randint(541, size=400)
     mat1 = matrix[idx,:]
     nbsr.fit(mat1)
     mat_student = nbsr.transform(matrix)
     idx = np.random.randint(1773, size=800)
-    nbsr = KNNImputer(n_neighbors=11)
+    nbsr = KNNImputer(n_neighbors=21)
     mat2 = matrix.T[idx, :]
     nbsr.fit(mat2)
     mat_item = nbsr.transform(matrix.T).T
