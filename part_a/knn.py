@@ -37,7 +37,7 @@ def knn_impute_by_item(matrix, valid_data, k):
     nbrs = KNNImputer(n_neighbors=k)
     # We use NaN-Euclidean distance measure.
     mat = nbrs.fit_transform(matrix.T).T
-    acc = sparse_matrix_evaluate(val_data, mat)
+    acc = sparse_matrix_evaluate(valid_data, mat)
     # print("Validation Accuracy: {}".format(acc))
     print("item {}".format(k))
     return acc
