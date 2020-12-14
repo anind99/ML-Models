@@ -40,38 +40,6 @@ def load_data(base_path="../data"):
 
     return zero_train_matrix, train_matrix, valid_data, test_data
 
-def load_data_bagging(samples, base_path="../data"):
-    """ Load the data in PyTorch Tensor.
-
-    :return: (zero_train_matrix, train_data, valid_data, test_data)
-        WHERE:
-        zero_train_matrix: 2D sparse matrix where missing entries are
-        filled with 0.
-        train_data: 2D sparse matrix
-        valid_data: A dictionary {user_id: list,
-        user_id: list, is_correct: list}
-        test_data: A dictionary {user_id: list,
-        user_id: list, is_correct: list}
-    """
-    train_matrix = load_train_sparse(base_path).toarray()
-    
-    sample_users = np.random.choice(len(train_matrix), samples)
-    nanMatrix = np.empty(train_matrix.shape)
-    nanMatrix[:] = np.NaN
-    train_matrix = [train_matrix[i] if i in sampel_users else nanMatrix[i] for i in range(len(train_matrix))]
-    
-    valid_data = load_valid_csv(base_path)
-    test_data = load_public_test_csv(base_path)
-
-    zero_train_matrix = train_matrix.copy()
-    # Fill in the missing entries to 0.
-    zero_train_matrix[np.isnan(train_matrix)] = 0
-    # Change to Float Tensor for PyTorch.
-    zero_train_matrix = torch.FloatTensor(zero_train_matrix)
-    train_matrix = torch.FloatTensor(train_matrix)
-
-    return zero_train_matrix, train_matrix, valid_data, test_data
-
 class AutoEncoder(nn.Module):
     def __init__(self, num_question, k=100):
         """ Initialize a class AutoEncoder.
@@ -113,8 +81,7 @@ class AutoEncoder(nn.Module):
         #####################################################################
         return out
 
-
-def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, test_data):
+def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     """ Train the neural network, where the objective also includes
     a regularizer.
 
@@ -153,7 +120,7 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, t
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            loss = torch.sum((output - target) ** 2.) + (lamb/2)*model.get_weight_norm()
+            loss = torch.sum((output - target) ** 2.) #+ (lamb/2)*(model.get_weight_norm()**2)
             loss.backward()
 
             train_loss += loss.item()
@@ -168,7 +135,6 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, t
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
-
 
 def evaluate(model, train_data, valid_data):
     """ Evaluate the valid_data on the current model.
@@ -214,29 +180,43 @@ def plot(result, lr, k):
     plt.legend()
     plt.show()
     
-def sample_for_bagging(num_random_samples):
-    if torch.cuda.is_available():  
-        dev = "cuda:0" 
-    else:  
-        dev = "cpu"  
-    device = torch.device(dev) 
+def sample_nn_predictions(train_matrix, test_data):
+    """
+    Used in Part A Question 4 to use the neural net as 
+    part of the bagging ensemble.
     
-    zero_train_matrix, train_matrix, valid_data, test_data = load_data_bagging(num_random_samples)
-    
-    zero_train_matrix.to(device)
-    train_matrix.to(device)
+    Returns a list of predictions.
+    """
+    zero_train_matrix = train_matrix.copy()
+    # Fill in the missing entries to 0.
+    zero_train_matrix[np.isnan(train_matrix)] = 0
+    # Change to Float Tensor for PyTorch.
+    zero_train_matrix = torch.FloatTensor(zero_train_matrix)
+    train_matrix = torch.FloatTensor(train_matrix)
     
     k = 10
     model = AutoEncoder(train_matrix.size()[1], k)
     lr = 0.005
     num_epoch = 200
-    lamb = 0.1
+    lamb = 0.001
     
-    result = train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch, test_data)
+    result = train(model, lr, lamb, train_matrix, 
+                   zero_train_matrix, test_data, num_epoch)
+    
     test_acc = evaluate(model, zero_train_matrix, test_data)
-    valid_acc = result[-1][1]
+    print("Test Acc: {}".format(test_acc))
     
-    return  test_acc, valid_acc
+    predictions = []
+    
+    for i, u in enumerate(test_data["user_id"]):
+        inputs = Variable(zero_train_matrix[u]).unsqueeze(0)
+        output = model(inputs)
+
+        guess = output[0][test_data["question_id"][i]].item() >= 0.5
+        predictions.append(guess)
+    
+    return predictions
+
 def main():
     
     if torch.cuda.is_available():  
@@ -258,18 +238,19 @@ def main():
     # Set model hyperparameters.
     ks = [10,50,100,200,500]
     k = ks[0]
-    model = AutoEncoder(train_matrix.size()[1], k) #change 10 to num_questions
+    model = AutoEncoder(train_matrix.size()[1], k) 
     
     # Set optimization hyperparameters.
     lr = 0.005
     num_epoch = 200
-    lamb = [0.001, 0.01, 0.1, 1]
+    lambs = [0.001, 0.01, 0.1, 1]
+    lamb = lambs[0]
 
-    result = train(model, lr, lamb[1], train_matrix, zero_train_matrix, valid_data, num_epoch, test_data)
+    result = train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch)
     plot(result, lr, k)
     test_acc = evaluate(model, zero_train_matrix, test_data)
     
-    print("Test Acc: {}".format(test_acc))
+    print("Test Acc: {}\tLambda: {}".format(test_acc, lamb))
     
     
     #####################################################################
