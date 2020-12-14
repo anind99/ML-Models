@@ -1,4 +1,5 @@
 from utils import *
+
 from torch.autograd import Variable
 
 import torch.nn as nn
@@ -8,7 +9,10 @@ import torch.utils.data
 
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def load_data(base_path="../data"):
     """ Load the data in PyTorch Tensor.
@@ -36,6 +40,37 @@ def load_data(base_path="../data"):
 
     return zero_train_matrix, train_matrix, valid_data, test_data
 
+def load_data_bagging(samples, base_path="../data"):
+    """ Load the data in PyTorch Tensor.
+
+    :return: (zero_train_matrix, train_data, valid_data, test_data)
+        WHERE:
+        zero_train_matrix: 2D sparse matrix where missing entries are
+        filled with 0.
+        train_data: 2D sparse matrix
+        valid_data: A dictionary {user_id: list,
+        user_id: list, is_correct: list}
+        test_data: A dictionary {user_id: list,
+        user_id: list, is_correct: list}
+    """
+    train_matrix = load_train_sparse(base_path).toarray()
+    
+    sample_users = np.random.choice(len(train_matrix), samples)
+    nanMatrix = np.empty(train_matrix.shape)
+    nanMatrix[:] = np.NaN
+    train_matrix = [train_matrix[i] if i in sampel_users else nanMatrix[i] for i in range(len(train_matrix))]
+    
+    valid_data = load_valid_csv(base_path)
+    test_data = load_public_test_csv(base_path)
+
+    zero_train_matrix = train_matrix.copy()
+    # Fill in the missing entries to 0.
+    zero_train_matrix[np.isnan(train_matrix)] = 0
+    # Change to Float Tensor for PyTorch.
+    zero_train_matrix = torch.FloatTensor(zero_train_matrix)
+    train_matrix = torch.FloatTensor(train_matrix)
+
+    return zero_train_matrix, train_matrix, valid_data, test_data
 
 class AutoEncoder(nn.Module):
     def __init__(self, num_question, k=100):
@@ -70,14 +105,16 @@ class AutoEncoder(nn.Module):
         # Implement the function as described in the docstring.             #
         # Use sigmoid activations for f and g.                              #
         #####################################################################
-        out = inputs
+        m = torch.nn.Sigmoid()
+        out = m(self.h(m(self.g(inputs))))
+        
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
         return out
 
 
-def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
+def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch, test_data):
     """ Train the neural network, where the objective also includes
     a regularizer.
 
@@ -96,8 +133,10 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
     model.train()
 
     # Define optimizers and loss function.
+    decay = (lamb/2)*model.get_weight_norm()
     optimizer = optim.SGD(model.parameters(), lr=lr)
     num_student = train_data.shape[0]
+    result = []
 
     for epoch in range(0, num_epoch):
         train_loss = 0.
@@ -109,19 +148,23 @@ def train(model, lr, lamb, train_data, zero_train_data, valid_data, num_epoch):
             optimizer.zero_grad()
             output = model(inputs)
 
+            
             # Mask the target to only compute the gradient of valid entries.
             nan_mask = np.isnan(train_data[user_id].unsqueeze(0).numpy())
             target[0][nan_mask] = output[0][nan_mask]
 
-            loss = torch.sum((output - target) ** 2.)
+            loss = torch.sum((output - target) ** 2.) + (lamb/2)*model.get_weight_norm()
             loss.backward()
 
             train_loss += loss.item()
             optimizer.step()
-
+            
         valid_acc = evaluate(model, zero_train_data, valid_data)
+        
         print("Epoch: {} \tTraining Cost: {:.6f}\t "
               "Valid Acc: {}".format(epoch, train_loss, valid_acc))
+        result.append((train_loss, valid_acc))
+    return result
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
@@ -151,10 +194,61 @@ def evaluate(model, train_data, valid_data):
             correct += 1
         total += 1
     return correct / float(total)
-
-
+    
+def plot(result, lr, k):
+    train = [t[0] for t in result]
+    valid = [v[1] for v in result]
+    x = [i+1 for i in range(len(result))]
+    
+    plt.plot(x, train, label="Training Loss")
+    plt.title("Training Loss vs Num Epoch, LR: {}, K: {}".format(lr, k))
+    plt.ylabel("Training Loss")
+    plt.xlabel("Num Epoch")
+    plt.legend()
+    plt.show()
+    
+    plt.plot(x, valid, label="Validation Accuracy")
+    plt.title("Validation Accuracy vs Num Epoch, LR: {}, K: {}".format(lr, k))
+    plt.ylabel("Accuracy")
+    plt.xlabel("Num Epoch")
+    plt.legend()
+    plt.show()
+    
+def sample_for_bagging(num_random_samples):
+    if torch.cuda.is_available():  
+        dev = "cuda:0" 
+    else:  
+        dev = "cpu"  
+    device = torch.device(dev) 
+    
+    zero_train_matrix, train_matrix, valid_data, test_data = load_data_bagging(num_random_samples)
+    
+    zero_train_matrix.to(device)
+    train_matrix.to(device)
+    
+    k = 10
+    model = AutoEncoder(train_matrix.size()[1], k)
+    lr = 0.005
+    num_epoch = 200
+    lamb = 0.1
+    
+    result = train(model, lr, lamb, train_matrix, zero_train_matrix, valid_data, num_epoch, test_data)
+    test_acc = evaluate(model, zero_train_matrix, test_data)
+    valid_acc = result[-1][1]
+    
+    return  test_acc, valid_acc
 def main():
+    
+    if torch.cuda.is_available():  
+        dev = "cuda:0" 
+    else:  
+        dev = "cpu"  
+    device = torch.device(dev) 
+    
     zero_train_matrix, train_matrix, valid_data, test_data = load_data()
+    
+    zero_train_matrix.to(device)
+    train_matrix.to(device)
 
     #####################################################################
     # TODO:                                                             #
@@ -162,16 +256,22 @@ def main():
     # validation set.                                                   #
     #####################################################################
     # Set model hyperparameters.
-    k = None
-    model = None
-
+    ks = [10,50,100,200,500]
+    k = ks[0]
+    model = AutoEncoder(train_matrix.size()[1], k) #change 10 to num_questions
+    
     # Set optimization hyperparameters.
-    lr = None
-    num_epoch = None
-    lamb = None
+    lr = 0.005
+    num_epoch = 200
+    lamb = [0.001, 0.01, 0.1, 1]
 
-    train(model, lr, lamb, train_matrix, zero_train_matrix,
-          valid_data, num_epoch)
+    result = train(model, lr, lamb[1], train_matrix, zero_train_matrix, valid_data, num_epoch, test_data)
+    plot(result, lr, k)
+    test_acc = evaluate(model, zero_train_matrix, test_data)
+    
+    print("Test Acc: {}".format(test_acc))
+    
+    
     #####################################################################
     #                       END OF YOUR CODE                            #
     #####################################################################
