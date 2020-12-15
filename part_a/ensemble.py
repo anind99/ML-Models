@@ -8,11 +8,11 @@ from utils import *
 def sample_knn_prediction(matrix, test_data):
     """Returns knn prediction using sample of test_data"""
     nbsr = KNNImputer(n_neighbors=11)
-    idx = np.random.randint(541, size=400)
+    idx = np.random.randint(542, size=400)
     mat1 = matrix[idx,:]
     nbsr.fit(mat1)
     mat_student = nbsr.transform(matrix)
-    idx = np.random.randint(1773, size=800)
+    idx = np.random.randint(1774, size=800)
     nbsr = KNNImputer(n_neighbors=21)
     mat2 = matrix.T[idx, :]
     nbsr.fit(mat2)
@@ -93,10 +93,10 @@ def main():
 	pred2_val, pred2_test = sample_knn_prediction(train_matrix, valid_data), sample_knn_prediction(train_matrix, test_data)
 	pred3_val, pred3_test = sample_irt_prediction(data, val_data, test_data)
 
-	final_test = (pred1_test + pred2_test + pred3_test)/3 > 0.5
+	final_test = (np.array(pred1_test) + np.array(pred2_test) + np.array(pred3_test))/3 > 0.5
 	print("Bagging Test Accuracy: ".format(evaluate(test_data, final_test)))
 
-	final_val = (pred1_val + pred2_val + pred3_val)/3 > 0.5
+	final_val = (np.array(pred1_val) + np.array(pred2_val) + np.array(pred3_val))/3 > 0.5
 	print("Bagging Validation Accuracy: ".format(evaluate(valid_data, final_val)))
 
 if __name__ == "__main__":
