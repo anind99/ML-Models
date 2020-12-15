@@ -178,8 +178,8 @@ def main():
 	
 	
 	print("== WITHOUT BAGGING ==")
-	alpha = 0.001
-	n_iterations = 90
+	alpha = 0.01
+	n_iterations = 50
 	theta, beta, _ = irt(train_data, val_data, metadata, alpha, n_iterations)
 	print('Validation score:', evaluate(val_data, predict(val_data, metadata, theta, beta)))
 	print('Test score:', evaluate(test_data, predict(test_data, metadata, theta, beta)))
