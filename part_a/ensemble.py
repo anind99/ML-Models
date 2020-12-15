@@ -94,10 +94,10 @@ def main():
 	pred3_val, pred3_test = sample_irt_prediction(data, val_data, test_data)
 
 	final_test = (pred1_test + pred2_test + pred3_test)/3 > 0.5
-	print("Bagging Test Accuracy: ".format(sparse_matrix_accuracy(final_test)))
+	print("Bagging Test Accuracy: ".format(evaluate(test_data, final_test)))
 
 	final_val = (pred1_val + pred2_val + pred3_val)/3 > 0.5
-	print("Bagging Validation Accuracy: ".format(sparse_matrix_accuracy(final_val)))
+	print("Bagging Validation Accuracy: ".format(evaluate(valid_data, final_val)))
 
 if __name__ == "__main__":
     main()
