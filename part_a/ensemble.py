@@ -32,13 +32,22 @@ def sample_irt_prediction(data, val_data, test_data):
 	alpha = 0.01
 	n_iterations = 50
 	theta, beta, val_lst = irt(sample_data, val_data, alpha, n_iterations)
-	pred = []
+	
+	val_pred = []
+	for i, q in enumerate(val_data["question_id"]):
+		u = val_data["user_id"][i]
+		x = (theta[u] - beta[q]).sum()
+		p_a = sigmoid(x)
+		val_pred.append(p_a >= 0.5)
+	
+	test_pred = []
 	for i, q in enumerate(test_data["question_id"]):
 		u = test_data["user_id"][i]
 		x = (theta[u] - beta[q]).sum()
 		p_a = sigmoid(x)
-		pred.append(p_a >= 0.5)
-	return pred
+		test_pred.append(p_a >= 0.5)
+	
+	return val_pred, test_pred
 
 
 def sample_nn_predictions(train_matrix, test_data):
