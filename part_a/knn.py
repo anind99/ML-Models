@@ -44,9 +44,9 @@ def knn_impute_by_item(matrix, valid_data, k):
 
 
 def main():
-    sparse_matrix = load_train_sparse("").toarray()
-    val_data = load_valid_csv("")
-    test_data = load_public_test_csv("")
+    sparse_matrix = load_train_sparse("../data").toarray()
+    val_data = load_valid_csv("../data")
+    test_data = load_public_test_csv("../data")
 
     print("Sparse matrix:")
     print(sparse_matrix)
