@@ -7,16 +7,17 @@ from utils import *
 
 def sample_knn_prediction(matrix, test_data):
     """Returns knn prediction using sample of test_data"""
+    matrix_c = np.copy(matrix.T)
     nbsr = KNNImputer(n_neighbors=11)
-    idx = np.random.randint(542, size=400)
+    idx = np.random.randint(542, size=542)
     mat1 = matrix[idx,:]
     nbsr.fit(mat1)
     mat_student = nbsr.transform(matrix)
-    idx = np.random.randint(1774, size=800)
+    idx = np.random.randint(1774, size=1774)
     nbsr = KNNImputer(n_neighbors=21)
-    mat2 = matrix.T[idx, :]
+    mat2 = matrix_c[idx, :]
     nbsr.fit(mat2)
-    mat_item = nbsr.transform(matrix.T).T
+    mat_item = nbsr.transform(matrix_c).T
     mat_avg = (mat_item + mat_student)*0.5
     return sparse_matrix_predictions(test_data, mat_avg, threshold=0.5)
 
