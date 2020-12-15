@@ -91,9 +91,15 @@ def main():
 	zero_train_matrix, train_matrix, valid_data, test_data = load_data()
 	pred1_val, pred1_test =  sample_nn_predictions(train_matrix, valid_data), sample_nn_predictions(train_matrix, test_data)
 	pred2_val, pred2_test = sample_knn_prediction(train_matrix, valid_data), sample_knn_prediction(train_matrix, test_data)
-	pred3_test = sample_irt_prediction(data, val_data, test_data)
+	pred3_val, pred3_test = sample_irt_prediction(data, val_data, test_data)
 
 	final_test = (pred1_test + pred2_test + pred3_test)/3 > 0.5
-	print("Bagging Accuracy: ".format(sparse_matrix_accuracy(final_test)))
+	print("Bagging Test Accuracy: ".format(sparse_matrix_accuracy(final_test)))
+
+	final_val = (pred1_val + pred2_val + pred3_val)/3 > 0.5
+	print("Bagging Validation Accuracy: ".format(sparse_matrix_accuracy(final_val)))
+
+if __name__ == "__main__":
+    main()
 
 
