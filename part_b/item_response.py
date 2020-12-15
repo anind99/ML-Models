@@ -1,9 +1,16 @@
 from utils import *
 from metadata import load_question_meta
 
+import random
 import numpy as np
+import scipy.stats
 import matplotlib.pyplot as plt
 
+
+# TODO:
+# - Bagging to reduce overfitting
+# - Formal description
+# - Figure (matrix? show that only some abilities apply to each question)
 
 N_students = 542
 N_questions = 1774
@@ -26,6 +33,7 @@ def _get_subject_matrix(metadata):
 		for k in metadata[j]:
 			subj_mat[j][k] = 1.0
 	return subj_mat
+
 
 def neg_log_likelihood(data, metadata, theta, beta):
 	""" Compute the negative log-likelihood.
@@ -122,7 +130,8 @@ def irt(data, val_data, metadata, lr, iterations):
 	
 	for i in range(iterations):
 		neg_lld = neg_log_likelihood(data, metadata=metadata, theta=theta, beta=beta)
-		score = evaluate(data=val_data, metadata=metadata, theta=theta, beta=beta)
+		pred = predict(data=val_data, metadata=metadata, theta=theta, beta=beta)
+		score = evaluate(data=val_data, pred=pred)
 		val_lld = -neg_log_likelihood(val_data, metadata=metadata, theta=theta, beta=beta)
 		val_lst.append((score,val_lld))
 		print("NLLK: {} \t Score: {}".format(neg_lld, score))
@@ -131,14 +140,14 @@ def irt(data, val_data, metadata, lr, iterations):
 	return theta, beta, val_lst
 
 
-def evaluate(data, metadata, theta, beta):
-	""" Evaluate the model given data and return the accuracy.
+def predict(data, metadata, theta, beta):
+	""" Make predictions on data using the given model.
 	:param data: A dictionary {user_id: list, question_id: list,
 	is_correct: list}
 	:param metadata: A dictionary mapping question_id to subject_id
 	:param theta: N_students x N_subjects matrix
 	:param beta: Vector
-	:return: float
+	:return: list
 	"""
 	pred = []
 	subj_mat = _get_subject_matrix(metadata)
@@ -148,8 +157,17 @@ def evaluate(data, metadata, theta, beta):
 		x = (theta_2[u][q] - beta[q]).sum()
 		p_a = sigmoid(x)
 		pred.append(p_a >= 0.5)
-	return np.sum((data["is_correct"] == np.array(pred))) \
-		   / len(data["is_correct"])
+	return pred
+
+
+def evaluate(data, pred):
+	""" Evaluate predictions given data and return the accuracy.
+	:param data: A dictionary {user_id: list, question_id: list,
+	is_correct: list}
+	:param pred: list
+	:return: float
+	"""
+	return np.sum((data["is_correct"] == np.array(pred))) / len(data["is_correct"])
 
 
 def main():
@@ -158,21 +176,36 @@ def main():
 	test_data = load_public_test_csv("../data")
 	metadata = load_question_meta("../data")
 	
+	
+	print("== WITHOUT BAGGING ==")
 	alpha = 0.001
-	n_iterations = 200
+	n_iterations = 90
+	theta, beta, _ = irt(train_data, val_data, metadata, alpha, n_iterations)
+	print('Validation score:', evaluate(val_data, predict(val_data, metadata, theta, beta)))
+	print('Test score:', evaluate(test_data, predict(test_data, metadata, theta, beta)))
 	
-	theta, beta, val_lst = irt(train_data, val_data, metadata, alpha, n_iterations)
-	print('Validation score:', evaluate(data=val_data, metadata=metadata, theta=theta, beta=beta))
-	print('Test score:', evaluate(data=test_data, metadata=metadata, theta=theta, beta=beta))
-	
-	# Accuracy plots
-	iters = range(1,n_iterations+1)
-	plt.plot(iters, [v[0] for v in val_lst],'g-')
-	plt.title('Validation accuracy')
-	plt.show()
-	plt.plot(iters, [v[1] for v in val_lst],'b-')
-	plt.title('Validation log-likelihood')
-	plt.show()
+	print("== WITH BAGGING ==")
+	alpha = 0.01
+	n_iterations = 50
+	n_batch = 5
+	preds_val = []
+	preds_test = []
+	n_train = len(train_data['user_id'])
+	for i in range(n_batch):
+		print("-- Batch", i+1, "==")
+		indices = random.choices(range(n_train), k=n_train)
+		batch_data = {
+			'user_id': [train_data['user_id'][i] for i in indices],
+			'question_id': [train_data['question_id'][i] for i in indices],
+			'is_correct': [train_data['is_correct'][i] for i in indices]
+		}
+		theta_b, beta_b, _ = irt(batch_data, val_data, metadata, alpha, n_iterations)
+		preds_val.append(predict(val_data, metadata, theta_b, beta_b))
+		preds_test.append(predict(test_data, metadata, theta_b, beta_b))
+	final_pred_val = list(scipy.stats.mode(preds_val, axis=0)[0][0])
+	final_pred_test = list(scipy.stats.mode(preds_test, axis=0)[0][0])
+	print('Validation score:', evaluate(val_data, final_pred_val))
+	print('Test score:', evaluate(test_data, final_pred_test))
 
 
 if __name__ == "__main__":
