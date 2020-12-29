@@ -23,7 +23,7 @@ def sample_knn_prediction(matrix, test_data):
 
 def sample_irt_prediction(data, val_data, test_data):
 	n_data = len(data['user_id'])
-	indices = random.choice(range(n_data), k=n_data)
+	indices = random.choices(range(n_data), k=n_data)
 	sample_data = {
 		'user_id': [data['user_id'][i] for i in indices],
 		'question_id': [data['question_id'][i] for i in indices],
